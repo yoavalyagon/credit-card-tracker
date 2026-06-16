@@ -68,8 +68,9 @@ def send_alert_email(total):
 
         msg.attach(MIMEText(body, "html"))
 
-        print(f"[EMAIL] Connecting to smtp.gmail.com:465")
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as smtp:
+        print(f"[EMAIL] Connecting to smtp.gmail.com:587 with STARTTLS")
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as smtp:
+            smtp.starttls()
             print(f"[EMAIL] Connected, logging in...")
             smtp.login(GMAIL_USER, GMAIL_PASS)
             print(f"[EMAIL] Logged in, sending...")
