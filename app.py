@@ -114,43 +114,20 @@ def add_expense():
     try:
         data = request.json or {}
         amount = float(data.get('amount', 0))
-        print(f"[ADD_EXPENSE] Received: {amount} NIS")
 
         if amount <= 0:
             return jsonify({'error': 'Invalid amount'}), 400
 
         state = load_state()
-        print(f"[ADD_EXPENSE] Current state: total={state['total']}, alert_sent={state.get('alert_sent')}")
-
         state['total'] += amount
         state['last_updated'] = datetime.now().isoformat()
-        print(f"[ADD_EXPENSE] New total: {state['total']}")
-
-        alert_sent = False
-        if state['total'] > THRESHOLD:
-            print(f"[ADD_EXPENSE] Total > 850, checking alert flag...")
-            if not state.get('alert_sent'):
-                print(f"[ADD_EXPENSE] Alert not sent yet, triggering email...")
-                state['alert_sent'] = True
-                alert_sent = True
-                # Send email in background thread (non-blocking)
-                thread = threading.Thread(target=send_alert_email, args=(state['total'],))
-                thread.daemon = True
-                thread.start()
-            else:
-                print(f"[ADD_EXPENSE] Alert already sent, skipping email")
-        else:
-            print(f"[ADD_EXPENSE] Total <= 850, no alert needed")
 
         save_state(state)
-        print(f"[ADD_EXPENSE] Saved state, returning success")
         return jsonify({
             'success': True,
-            'total': state['total'],
-            'alert_sent': alert_sent
+            'total': state['total']
         })
     except Exception as e:
-        print(f"[ADD_EXPENSE] Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -159,11 +136,55 @@ def reset_counter():
     try:
         state = {
             'total': 0.0,
-            'last_updated': datetime.now().isoformat(),
-            'alert_sent': False
+            'last_updated': datetime.now().isoformat()
         }
         save_state(state)
         return jsonify({'success': True, 'total': 0.0})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/notify', methods=['POST'])
+def notify_yoav():
+    try:
+        state = load_state()
+        total = state['total']
+
+        # Send email in background thread
+        def send_notification():
+            try:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = f"Notification: Credit card expenses at {total} NIS"
+                msg["From"] = GMAIL_USER
+                msg["To"] = TO_EMAIL
+
+                body = f"""
+                <html><body style="font-family:Arial;max-width:600px">
+                <h2 style="color:#0d47a1">📢 Kamil wants to notify you</h2>
+                <p style="font-size:16px">
+                    <strong>Current Total:</strong> {total} NIS<br>
+                </p>
+                <p style="color:#666;font-size:14px">
+                    Kamil clicked "Tell Yoav" button.
+                </p>
+                </body></html>
+                """
+
+                msg.attach(MIMEText(body, "html"))
+
+                with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as smtp:
+                    smtp.starttls()
+                    smtp.login(GMAIL_USER, GMAIL_PASS)
+                    smtp.sendmail(GMAIL_USER, TO_EMAIL, msg.as_string())
+                print(f"[NOTIFY] Email sent to {TO_EMAIL}")
+            except Exception as e:
+                print(f"[NOTIFY] Error: {e}")
+
+        thread = threading.Thread(target=send_notification)
+        thread.daemon = True
+        thread.start()
+
+        return jsonify({'success': True, 'total': total, 'message': 'Yoav notified!'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

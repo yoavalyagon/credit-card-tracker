@@ -23,11 +23,6 @@
                     <p class="text-center mb-0">NIS</p>
                 </div>
 
-                <!-- Warning if near threshold -->
-                <div id="warningAlert" class="alert alert-warning d-none" role="alert" style="display:none;">
-                    ⚠️ You are approaching the 850 NIS limit!
-                </div>
-
                 <!-- Expense Input -->
                 <div class="input-group mb-3">
                     <input
@@ -44,6 +39,17 @@
                         onclick="addExpense()"
                     >
                         ➕ Add Expense
+                    </button>
+                </div>
+
+                <!-- Tell Yoav Button -->
+                <div class="d-grid gap-2 mb-3">
+                    <button
+                        class="btn btn-warning btn-lg"
+                        id="notifyBtn"
+                        onclick="notifyYoav()"
+                    >
+                        📢 Tell Yoav
                     </button>
                 </div>
 
@@ -78,14 +84,6 @@
                 .then(data => {
                     const total = data.total.toFixed(2);
                     document.getElementById('totalAmount').textContent = total;
-
-                    // Show warning if near threshold
-                    const warning = document.getElementById('warningAlert');
-                    if (data.total > 750 && data.total <= 850) {
-                        warning.style.display = 'block';
-                    } else {
-                        warning.style.display = 'none';
-                    }
 
                     // Update last updated time
                     const lastUpdated = document.getElementById('lastUpdated');
@@ -122,12 +120,7 @@
                 if (data.success) {
                     input.value = '';
                     updateTotal();
-
-                    if (data.alert_sent) {
-                        alert('✅ Expense added!\n\n⚠️ Alert sent! Total expenses exceeded 850 NIS!');
-                    } else {
-                        alert(`✅ Expense added successfully!\nTotal: ${data.total.toFixed(2)} NIS`);
-                    }
+                    alert(`✅ Expense added!\nTotal: ${data.total.toFixed(2)} NIS`);
                 } else {
                     alert('❌ Error: ' + (data.error || 'Unknown error'));
                 }
@@ -135,6 +128,34 @@
             .catch(err => {
                 addBtn.disabled = false;
                 addBtn.textContent = '➕ Add Expense';
+                alert('❌ Connection error: ' + err.message);
+            });
+        }
+
+        function notifyYoav() {
+            const notifyBtn = document.getElementById('notifyBtn');
+            notifyBtn.disabled = true;
+            notifyBtn.textContent = 'Sending...';
+
+            fetch('/api/notify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+            .then(r => r.json())
+            .then(data => {
+                notifyBtn.disabled = false;
+                notifyBtn.textContent = '📢 Tell Yoav';
+
+                if (data.success) {
+                    alert(`✅ ${data.message}\nYoav has been notified about ${data.total.toFixed(2)} NIS`);
+                } else {
+                    alert('❌ Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                notifyBtn.disabled = false;
+                notifyBtn.textContent = '📢 Tell Yoav';
                 alert('❌ Connection error: ' + err.message);
             });
         }
