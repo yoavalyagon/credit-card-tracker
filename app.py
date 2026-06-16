@@ -93,7 +93,20 @@ def index():
 @app.route('/api/state', methods=['GET'])
 def get_state():
     state = load_state()
+    print(f"[STATE] Current: {state}")
     return jsonify(state)
+
+@app.route('/api/debug', methods=['GET'])
+def debug():
+    state = load_state()
+    return jsonify({
+        'current_state': state,
+        'threshold': THRESHOLD,
+        'gmail_configured': bool(GMAIL_PASS),
+        'config_dir': str(CONFIG_DIR),
+        'state_file': str(STATE_FILE),
+        'state_file_exists': STATE_FILE.exists()
+    })
 
 
 @app.route('/api/add-expense', methods=['POST'])
