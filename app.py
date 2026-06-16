@@ -1,6 +1,7 @@
 import os
 import json
 import smtplib
+import threading
 from pathlib import Path
 from datetime import datetime
 from email.mime.text import MIMEText
@@ -63,12 +64,13 @@ def send_alert_email(total):
 
         msg.attach(MIMEText(body, "html"))
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=5) as smtp:
             smtp.login(GMAIL_USER, GMAIL_PASS)
             smtp.sendmail(GMAIL_USER, TO_EMAIL, msg.as_string())
+        print(f"Alert email sent for total {total}")
         return True
     except Exception as e:
-        print(f"Email error: {e}")
+        print(f"Email error (non-blocking): {e}")
         return False
 
 
@@ -99,9 +101,12 @@ def add_expense():
 
         alert_sent = False
         if state['total'] > THRESHOLD and not state.get('alert_sent'):
-            if send_alert_email(state['total']):
-                state['alert_sent'] = True
-                alert_sent = True
+            state['alert_sent'] = True
+            alert_sent = True
+            # Send email in background thread (non-blocking)
+            thread = threading.Thread(target=send_alert_email, args=(state['total'],))
+            thread.daemon = True
+            thread.start()
 
         save_state(state)
         return jsonify({
