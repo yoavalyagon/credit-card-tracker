@@ -47,7 +47,7 @@
                     <button
                         class="btn btn-warning btn-lg"
                         id="notifyBtn"
-                        onclick="notifyYoav()"
+                        onclick="openMailTo()"
                     >
                         📢 Tell Yoav
                     </button>
@@ -132,32 +132,17 @@
             });
         }
 
-        function notifyYoav() {
-            const notifyBtn = document.getElementById('notifyBtn');
-            notifyBtn.disabled = true;
-            notifyBtn.textContent = 'Sending...';
-
-            fetch('/api/notify', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({})
-            })
-            .then(r => r.json())
-            .then(data => {
-                notifyBtn.disabled = false;
-                notifyBtn.textContent = '📢 Tell Yoav';
-
-                if (data.success) {
-                    alert(`✅ ${data.message}\nYoav has been notified about ${data.total.toFixed(2)} NIS`);
-                } else {
-                    alert('❌ Error: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(err => {
-                notifyBtn.disabled = false;
-                notifyBtn.textContent = '📢 Tell Yoav';
-                alert('❌ Connection error: ' + err.message);
-            });
+        function openMailTo() {
+            fetch('/api/state')
+                .then(r => r.json())
+                .then(data => {
+                    const total = data.total.toFixed(2);
+                    const subject = encodeURIComponent(`Credit card tracker - ${total} NIS`);
+                    const body = encodeURIComponent(`Hi Yoav,\n\nThe credit card expenses are now at ${total} NIS.\n\nKamil`);
+                    const mailtoLink = `mailto:yoavalyagon@gmail.com?subject=${subject}&body=${body}`;
+                    window.location.href = mailtoLink;
+                })
+                .catch(err => console.error('Error:', err));
         }
 
         function confirmReset() {
