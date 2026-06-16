@@ -45,14 +45,14 @@ def send_alert_email(total):
         msg["To"] = TO_EMAIL
 
         body = f"""
-        <html><body style="font-family:Arial;max-width:600px;direction:rtl">
-        <h2 style="color:#d32f2f">⚠️ התראה: סה״כ ההוצאות עברה את הסף</h2>
+        <html><body style="font-family:Arial;max-width:600px">
+        <h2 style="color:#d32f2f">⚠️ Alert: Credit Card Expenses Exceeded Limit</h2>
         <p style="font-size:16px">
-            <strong>סכום כולל:</strong> {total} שח<br>
-            <strong>הסף:</strong> 850 שח<br>
+            <strong>Total Amount:</strong> {total} NIS<br>
+            <strong>Limit:</strong> 850 NIS<br>
         </p>
         <p style="color:#666;font-size:14px">
-            אנא בדוק את ההוצאות וטען את הכרטיס מחדש בעת הצורך.
+            Please review your expenses and reload the card when needed.
         </p>
         </body></html>
         """
@@ -112,12 +112,6 @@ def add_expense():
 @app.route('/api/reset', methods=['POST'])
 def reset_counter():
     try:
-        data = request.json or {}
-        password = data.get('password', '')
-
-        if password != RESET_PASSWORD:
-            return jsonify({'error': 'Unauthorized'}), 403
-
         state = {
             'total': 0.0,
             'last_updated': datetime.now().isoformat(),
