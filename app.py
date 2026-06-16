@@ -44,6 +44,10 @@ def save_state(state):
 
 def send_alert_email(total):
     try:
+        print(f"[EMAIL] Starting email send for total {total}")
+        print(f"[EMAIL] Using GMAIL_USER: {GMAIL_USER}")
+        print(f"[EMAIL] Using TO_EMAIL: {TO_EMAIL}")
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"Alert: Credit card expenses exceeded 850 NIS (Total: {total})"
         msg["From"] = GMAIL_USER
@@ -64,13 +68,18 @@ def send_alert_email(total):
 
         msg.attach(MIMEText(body, "html"))
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=5) as smtp:
+        print(f"[EMAIL] Connecting to smtp.gmail.com:465")
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as smtp:
+            print(f"[EMAIL] Connected, logging in...")
             smtp.login(GMAIL_USER, GMAIL_PASS)
+            print(f"[EMAIL] Logged in, sending...")
             smtp.sendmail(GMAIL_USER, TO_EMAIL, msg.as_string())
-        print(f"Alert email sent for total {total}")
+        print(f"[EMAIL] ✓ Alert email sent for total {total}")
         return True
     except Exception as e:
-        print(f"Email error (non-blocking): {e}")
+        print(f"[EMAIL] ✗ Error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
