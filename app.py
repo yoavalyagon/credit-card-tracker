@@ -12,7 +12,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
-CONFIG_DIR = Path('config')
+# Use /tmp for state file if config dir not writable (Railway compatibility)
+CONFIG_DIR = Path(os.getenv('STATE_DIR', '/tmp/credit-card-tracker'))
 STATE_FILE = CONFIG_DIR / 'expense_state.json'
 
 GMAIL_USER = os.getenv('GMAIL_USER', 'yoavalyagon@gmail.com')
