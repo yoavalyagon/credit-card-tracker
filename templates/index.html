@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>עקיבת הוצאות כרטיס אשראי</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-light">
+    <div class="container mt-5 mb-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">💳 עקיבת הוצאות כרטיס אשראי</h2>
+            </div>
+            <div class="card-body">
+                <!-- Display Total -->
+                <div class="alert alert-info" role="alert">
+                    <h4 class="alert-heading">סה״כ הוצאות</h4>
+                    <h1 id="totalAmount" class="text-center" style="font-size: 2.5rem; color: #0d47a1; font-weight: bold;">
+                        0.00
+                    </h1>
+                    <p class="text-center mb-0">שקלים חדשים</p>
+                </div>
+
+                <!-- Warning if near threshold -->
+                <div id="warningAlert" class="alert alert-warning d-none" role="alert" style="display:none;">
+                    ⚠️ אתה קרוב לסף של 850 שקל!
+                </div>
+
+                <!-- Expense Input -->
+                <div class="input-group mb-3">
+                    <input
+                        type="number"
+                        id="expenseAmount"
+                        class="form-control form-control-lg"
+                        placeholder="הזן סכום בשקלים"
+                        step="0.01"
+                        min="0"
+                    >
+                    <button
+                        class="btn btn-success btn-lg"
+                        id="addBtn"
+                        onclick="addExpense()"
+                    >
+                        ➕ הוסף הוצאה
+                    </button>
+                </div>
+
+                <!-- Reset Button (Protected) -->
+                <div class="d-grid">
+                    <button
+                        class="btn btn-danger btn-lg"
+                        id="resetBtn"
+                        onclick="showResetDialog()"
+                    >
+                        🔄 אפס מונה (אחרי טעינה)
+                    </button>
+                </div>
+
+                <!-- Last Updated -->
+                <p class="text-muted text-center mt-4 mb-0" id="lastUpdated"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Confirmation Modal -->
+    <div class="modal fade" id="resetModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">אישור אפס מונה</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>הכרטיס טופעל מחדש? הזן סיסמה לאפס המונה:</p>
+                    <input
+                        type="password"
+                        id="resetPassword"
+                        class="form-control"
+                        placeholder="סיסמה"
+                        autocomplete="off"
+                    >
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmReset()">אפס</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const resetModal = new bootstrap.Modal(document.getElementById('resetModal'), {
+            backdrop: 'static',
+            keyboard: false
+        });
+
+        function formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleString('he-IL');
+        }
+
+        function updateTotal() {
+            fetch('/api/state')
+                .then(r => r.json())
+                .then(data => {
+                    const total = data.total.toFixed(2);
+                    document.getElementById('totalAmount').textContent = total;
+
+                    // Show warning if near threshold
+                    const warning = document.getElementById('warningAlert');
+                    if (data.total > 750 && data.total <= 850) {
+                        warning.style.display = 'block';
+                    } else {
+                        warning.style.display = 'none';
+                    }
+
+                    // Update last updated time
+                    const lastUpdated = document.getElementById('lastUpdated');
+                    if (data.last_updated) {
+                        lastUpdated.textContent = `עדכון אחרון: ${formatDate(data.last_updated)}`;
+                    }
+                })
+                .catch(err => console.error('Error updating total:', err));
+        }
+
+        function addExpense() {
+            const input = document.getElementById('expenseAmount');
+            const amount = parseFloat(input.value);
+
+            if (!amount || amount <= 0) {
+                alert('אנא הזן סכום חיובי');
+                return;
+            }
+
+            const addBtn = document.getElementById('addBtn');
+            addBtn.disabled = true;
+            addBtn.textContent = 'שליחה...';
+
+            fetch('/api/add-expense', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({amount})
+            })
+            .then(r => r.json())
+            .then(data => {
+                addBtn.disabled = false;
+                addBtn.textContent = '➕ הוסף הוצאה';
+
+                if (data.success) {
+                    input.value = '';
+                    updateTotal();
+
+                    if (data.alert_sent) {
+                        alert('✅ ההוצאה נוספה!\n\n⚠️ התקבלה התראה - סה״כ ההוצאות עברה את 850 שקל!');
+                    } else {
+                        alert(`✅ ההוצאה נוספה בהצלחה!\nסה״כ: ${data.total.toFixed(2)} שקל`);
+                    }
+                } else {
+                    alert('❌ שגיאה: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                addBtn.disabled = false;
+                addBtn.textContent = '➕ הוסף הוצאה';
+                alert('❌ שגיאת תקשורת: ' + err.message);
+            });
+        }
+
+        function showResetDialog() {
+            document.getElementById('resetPassword').value = '';
+            resetModal.show();
+            document.getElementById('resetPassword').focus();
+        }
+
+        function confirmReset() {
+            const password = document.getElementById('resetPassword').value;
+
+            if (!password) {
+                alert('אנא הזן סיסמה');
+                return;
+            }
+
+            fetch('/api/reset', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    resetModal.hide();
+                    document.getElementById('resetPassword').value = '';
+                    updateTotal();
+                    alert('✅ המונה אופס בהצלחה!');
+                } else {
+                    alert('❌ סיסמה שגויה');
+                    document.getElementById('resetPassword').value = '';
+                }
+            })
+            .catch(err => {
+                alert('❌ שגיאת תקשורת: ' + err.message);
+            });
+        }
+
+        // Load initial state
+        updateTotal();
+        // Refresh every 30 seconds
+        setInterval(updateTotal, 30000);
+
+        // Allow Enter key to add expense
+        document.getElementById('expenseAmount').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addExpense();
+        });
+
+        // Allow Enter key to confirm reset
+        document.getElementById('resetPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') confirmReset();
+        });
+    </script>
+</body>
+</html>
