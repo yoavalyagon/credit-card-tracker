@@ -12,8 +12,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Use /tmp for state file if config dir not writable (Railway compatibility)
-CONFIG_DIR = Path(os.getenv('STATE_DIR', '/tmp/credit-card-tracker'))
+# State file location - Railway uses /app as working directory
+CONFIG_DIR = Path('config')
 STATE_FILE = CONFIG_DIR / 'expense_state.json'
 
 GMAIL_USER = os.getenv('GMAIL_USER', 'yoavalyagon@gmail.com')
@@ -24,17 +24,21 @@ THRESHOLD = 850.0
 
 
 def load_state():
-    if STATE_FILE.exists():
-        try:
+    try:
+        if STATE_FILE.exists():
             return json.loads(STATE_FILE.read_text())
-        except (json.JSONDecodeError, Exception):
-            pass
+    except Exception as e:
+        print(f"Error loading state: {e}")
     return {"total": 0.0, "last_updated": None, "alert_sent": False}
 
 
 def save_state(state):
-    CONFIG_DIR.mkdir(exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+    try:
+        CONFIG_DIR.mkdir(exist_ok=True, parents=True)
+        STATE_FILE.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+    except Exception as e:
+        print(f"Error saving state: {e}")
+        raise
 
 
 def send_alert_email(total):
